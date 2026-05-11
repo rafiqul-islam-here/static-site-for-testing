@@ -24,7 +24,7 @@ const Home = () => {
             {/* Hero Section */}
             <div className="flex flex-col items-center justify-center text-center px-6 mt-32">
                 <h2 className="text-5xl font-extrabold mb-6">
-                    Build Something Amazing!! BODY
+                    Build Something Amazing!! BODYYYYYY
                 </h2>
 
                 <p className="text-lg text-gray-300 max-w-2xl mb-8">
