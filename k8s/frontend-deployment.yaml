@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: frontend
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: frontend
@@ -14,9 +14,6 @@ spec:
     spec:
       containers:
         - name: frontend-container
-          image: rafiqhere/k8s-test:frontend
+          image: rafiqhere/staticsitefortesting:static-app
           ports:
             - containerPort: 80
-          env:
-            - name: VITE_API_URL
-              value: "http://backend:3000"
