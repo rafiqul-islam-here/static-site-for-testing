@@ -7,10 +7,17 @@ metadata:
     nginx.ingress.kubernetes.io/limit-burst-multiplier: "1"
     nginx.ingress.kubernetes.io/limit-connections: "20"
     nginx.ingress.kubernetes.io/limit-rate-after: "10"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"   # HTTPS termination (SSL offloading)
 spec:
   ingressClassName: nginx
+  tls:
+  - hosts:
+      - staticapp.test
+    secretName: staticapp-tls
+
   rules:
-  - http:
+  - host: staticapp.test
+    http:
       paths:
       - path: /
         pathType: Prefix
