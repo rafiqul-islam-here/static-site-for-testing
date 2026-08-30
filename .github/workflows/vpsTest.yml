@@ -82,26 +82,26 @@ jobs:
 
           sudo netbird status
 
-      # - name: Test NetBird Connectivity
-      #   run: |
-      #     echo "Testing VPS connectivity..."
+      - name: Test NetBird Connectivity
+        run: |
+          echo "Testing VPS connectivity..."
 
-      #     ping -c 3 -W 5 "$VPS_NETBIRD_IP"
+          ping -c 3 -W 5 "$VPS_NETBIRD_IP"
 
-      #     echo "VPS is reachable through NetBird."
+          echo "VPS is reachable through NetBird."
 
-      # - name: Test Registry Connection
-      #   run: |
-      #     REGISTRY="${VPS_NETBIRD_IP}:${REGISTRY_PORT}"
+      - name: Test Registry Connection
+        run: |
+          REGISTRY="${VPS_NETBIRD_IP}:${REGISTRY_PORT}"
 
-      #     echo "Testing registry: $REGISTRY"
+          echo "Testing registry: $REGISTRY"
 
-      #     curl \
-      #       --fail \
-      #       --connect-timeout 10 \
-      #       "http://${REGISTRY}/v2/"
+          curl \
+            --fail \
+            --connect-timeout 10 \
+            "http://${REGISTRY}/v2/"
 
-      #     echo "Registry is reachable."
+          echo "Registry is reachable."
 
       - name: Generate Image Tag
         run: |
