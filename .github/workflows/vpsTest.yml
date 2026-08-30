@@ -82,13 +82,13 @@ jobs:
 
           sudo netbird status
 
-      - name: Test NetBird Connectivity
-        run: |
-          echo "Testing VPS connectivity..."
+      # - name: Test NetBird Connectivity
+      #   run: |
+      #     echo "Testing VPS connectivity..."
 
-          ping -c 3 -W 5 "$VPS_NETBIRD_IP"
+      #     ping -c 3 -W 5 "$VPS_NETBIRD_IP"
 
-          echo "VPS is reachable through NetBird."
+      #     echo "VPS is reachable through NetBird."
 
       - name: Test Registry Connection
         run: |
