@@ -93,14 +93,8 @@ jobs:
       - name: Test Registry Connection
         run: |
           REGISTRY="${VPS_NETBIRD_IP}:${REGISTRY_PORT}"
-
           echo "Testing registry: $REGISTRY"
-
-          curl \
-            --fail \
-            --connect-timeout 10 \
-            "http://${REGISTRY}/v2/"
-
+          curl http://${REGISTRY}/v2/
           echo "Registry is reachable."
 
       - name: Generate Image Tag
@@ -111,7 +105,6 @@ jobs:
 
           echo "TAG=$TAG" >> "$GITHUB_ENV"
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
-
           echo "Application: $APP_NAME"
           echo "Tag: $TAG"
           echo "Image: $IMAGE"
