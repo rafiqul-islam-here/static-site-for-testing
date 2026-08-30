@@ -72,10 +72,23 @@ jobs:
               break
             fi
 
+            if [ "$i" -eq 30 ]; then
+              echo "Failed to connect to NetBird."
+              exit 1
+            fi
+
             sleep 2
           done
 
           sudo netbird status
+
+      - name: Test NetBird Connectivity
+        run: |
+          echo "Testing VPS connectivity..."
+
+          ping -c 3 -W 5 "$VPS_NETBIRD_IP"
+
+          echo "VPS is reachable through NetBird."
 
       - name: Test Registry Connection
         run: |
@@ -123,5 +136,10 @@ jobs:
       - name: Cleanup
         if: always()
         run: |
-          podman rmi "$IMAGE" 2>/dev/null || true
+          if [ -n "${IMAGE:-}" ]; then
+            podman rmi "$IMAGE" 2>/dev/null || true
+          fi
+
           sudo netbird down || true
+
+          echo "Cleanup completed."
