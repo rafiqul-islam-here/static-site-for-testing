@@ -1,0 +1,185 @@
+name: Build and Push Image
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+      - staging
+
+  workflow_dispatch:
+
+env:
+  APP_NAME: myapp
+  REGISTRY_PORT: 5000
+
+jobs:
+  validate-branch:
+    name: Validate Branch
+    runs-on: ubuntu-latest
+
+    outputs:
+      branch: ${{ steps.branch.outputs.branch }}
+
+    steps:
+      - name: Validate branch
+        id: branch
+        shell: bash
+        run: |
+          BRANCH="${GITHUB_REF_NAME}"
+
+          echo "Current branch: $BRANCH"
+
+          case "$BRANCH" in
+            main|dev|staging)
+              echo "Branch validation successful."
+              echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Invalid branch: $BRANCH"
+              exit 1
+              ;;
+          esac
+
+
+  build-and-push:
+    name: Build and Push to Private Registry
+    needs: validate-branch
+    runs-on: ubuntu-latest
+
+    steps:
+      # --------------------------------------------------
+      # 1. Checkout source code
+      # --------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+
+      # --------------------------------------------------
+      # 2. Install Podman
+      # --------------------------------------------------
+      - name: Install Podman
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman
+
+
+      # --------------------------------------------------
+      # 3. Install NetBird
+      # --------------------------------------------------
+      - name: Install NetBird
+        run: |
+          curl -fsSL https://pkgs.netbird.io/install.sh | sh
+
+          netbird version
+
+
+      # --------------------------------------------------
+      # 4. Connect GitHub Runner to NetBird
+      # --------------------------------------------------
+      - name: Connect to NetBird
+        env:
+          NETBIRD_SETUP_KEY: ${{ secrets.NETBIRD_SETUP_KEY }}
+        run: |
+          sudo netbird up \
+            --setup-key "$NETBIRD_SETUP_KEY"
+
+          echo "Waiting for NetBird connection..."
+
+          for i in {1..30}; do
+            if sudo netbird status | grep -q "Connected"; then
+              echo "NetBird connected successfully."
+              break
+            fi
+
+            echo "Waiting..."
+            sleep 2
+          done
+
+          sudo netbird status
+
+
+      # --------------------------------------------------
+      # 5. Test connection to VPS registry
+      # --------------------------------------------------
+      - name: Test Registry Connection
+        env:
+          VPS_IP: ${{ secrets.VPS_NETBIRD_IP }}
+        run: |
+          echo "Testing connection to $VPS_IP:$REGISTRY_PORT"
+
+          curl -v \
+            --connect-timeout 10 \
+            "http://${VPS_IP}:${REGISTRY_PORT}/v2/"
+
+
+      # --------------------------------------------------
+      # 6. Generate image tag
+      # --------------------------------------------------
+      - name: Generate image tag
+        id: image
+        env:
+          VPS_IP: ${{ secrets.VPS_NETBIRD_IP }}
+        run: |
+          TAG="${GITHUB_RUN_NUMBER}"
+
+          IMAGE="${VPS_IP}:${REGISTRY_PORT}/${APP_NAME}:${TAG}"
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
+          echo "Image: $IMAGE"
+
+
+      # --------------------------------------------------
+      # 7. Build image
+      # --------------------------------------------------
+      - name: Build Docker image
+        run: |
+          podman build \
+            -t "${{ steps.image.outputs.image }}" \
+            .
+
+
+      # --------------------------------------------------
+      # 8. Login to private registry
+      # --------------------------------------------------
+      - name: Login to registry
+        env:
+          REGISTRY_USER: ${{ secrets.REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+          VPS_IP: ${{ secrets.VPS_NETBIRD_IP }}
+        run: |
+          podman login \
+            "${VPS_IP}:${REGISTRY_PORT}" \
+            --username "$REGISTRY_USER" \
+            --password "$REGISTRY_PASSWORD"
+
+
+      # --------------------------------------------------
+      # 9. Push image
+      # --------------------------------------------------
+      - name: Push image
+        run: |
+          podman push \
+            "${{ steps.image.outputs.image }}"
+
+
+      # --------------------------------------------------
+      # 10. Logout
+      # --------------------------------------------------
+      - name: Logout from registry
+        if: always()
+        env:
+          VPS_IP: ${{ secrets.VPS_NETBIRD_IP }}
+        run: |
+          podman logout "${VPS_IP}:${REGISTRY_PORT}" || true
+
+
+      # --------------------------------------------------
+      # 11. Disconnect NetBird
+      # --------------------------------------------------
+      - name: Disconnect NetBird
+        if: always()
+        run: |
+          sudo netbird down || true
