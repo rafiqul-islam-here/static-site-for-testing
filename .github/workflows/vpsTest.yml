@@ -12,8 +12,6 @@ on:
 env:
   APP_NAME: ${{ vars.APP_NAME }}
   NETBIRD_SETUP_KEY: ${{ vars.NETBIRD_SETUP_KEY }}
-  REGISTRY_USERNAME: ${{ vars.REGISTRY_USERNAME }}
-  REGISTRY_PASSWORD: ${{ vars.REGISTRY_PASSWORD }}
   REGISTRY_PORT: ${{ vars.REGISTRY_PORT }}
   VPS_NETBIRD_IP: ${{ vars.VPS_NETBIRD_IP }}
 
@@ -44,6 +42,7 @@ jobs:
     name: Build & Push
     needs: validate-branch
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -54,19 +53,25 @@ jobs:
           sudo apt-get install -y podman
           podman --version
 
-      - name: Connect to NetBird
+      - name: Install NetBird
         run: |
           curl -fsSL https://pkgs.netbird.io/install.sh | sh
           netbird version
+
+      - name: Connect to NetBird
+        run: |
           sudo netbird up --setup-key "$NETBIRD_SETUP_KEY"
+
           echo "Waiting for NetBird connection..."
 
           for i in {1..30}; do
             STATUS=$(sudo netbird status 2>/dev/null || true)
+
             if echo "$STATUS" | grep -qi "Connected"; then
               echo "NetBird connected successfully."
               break
             fi
+
             sleep 2
           done
 
@@ -74,36 +79,49 @@ jobs:
 
       - name: Test Registry Connection
         run: |
-          echo "Testing registry..."
-          curl --fail --connect-timeout 10 "http://${VPS_NETBIRD_IP}:${REGISTRY_PORT}/v2/"
+          REGISTRY="${VPS_NETBIRD_IP}:${REGISTRY_PORT}"
+
+          echo "Testing registry: $REGISTRY"
+
+          curl \
+            --fail \
+            --connect-timeout 10 \
+            "http://${REGISTRY}/v2/"
+
           echo "Registry is reachable."
 
       - name: Generate Image Tag
         run: |
           TAG="${GITHUB_RUN_NUMBER}"
-          IMAGE="${VPS_NETBIRD_IP}:${REGISTRY_PORT}/${APP_NAME}:${TAG}"
+          REGISTRY="${VPS_NETBIRD_IP}:${REGISTRY_PORT}"
+          IMAGE="${REGISTRY}/${APP_NAME}:${TAG}"
+
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
-          echo "Application : $APP_NAME"
-          echo "Tag         : $TAG"
-          echo "Image       : $IMAGE"
+
+          echo "Application: $APP_NAME"
+          echo "Tag: $TAG"
+          echo "Image: $IMAGE"
 
       - name: Build Image
         run: |
-          podman build -t "$IMAGE" ./front-end
-          echo "Image built successfully."
+          podman build \
+            -t "$IMAGE" \
+            ./front-end
 
-      - name: Login to Registry
-        run: |
-          podman login "${VPS_NETBIRD_IP}:${REGISTRY_PORT}" --username "$REGISTRY_USERNAME" --password "$REGISTRY_PASSWORD"
+          echo "Image built successfully."
 
       - name: Push Image
         run: |
-          podman push "$IMAGE"
-          echo "Image pushed successfully"
+          podman push \
+            --tls-verify=false \
+            "$IMAGE"
+
+          echo "Image pushed successfully."
           echo "Image: $IMAGE"
 
       - name: Cleanup
         if: always()
         run: |
-          podman logout "${VPS_NETBIRD_IP}:${REGISTRY_PORT}" || true
+          podman rmi "$IMAGE" 2>/dev/null || true
           sudo netbird down || true
