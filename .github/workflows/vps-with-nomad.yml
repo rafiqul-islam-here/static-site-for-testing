@@ -132,7 +132,15 @@ jobs:
         run: |
           sleep 10
           nomad job status frontend
-          nomad job allocations frontend
+          nomad job allocs frontend
+
+      # - name: Verify Deployment
+      #   env:
+      #     NOMAD_ADDR: http://${{ vars.VPS_NETBIRD_IP }}:4646
+      #   run: |
+      #     sleep 10
+      #     nomad job status frontend
+      #     nomad job allocations frontend
 
       - name: Cleanup
         if: always()
