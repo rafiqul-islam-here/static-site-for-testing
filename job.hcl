@@ -19,7 +19,7 @@ job "frontend" {
     }
 
     task "frontend" {
-      driver = "docker"
+      driver = "podman"
 
       shutdown_delay = "10s"
 
