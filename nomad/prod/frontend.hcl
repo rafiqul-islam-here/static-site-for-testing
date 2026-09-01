@@ -3,7 +3,6 @@ variable "IMAGE" {
 }
 
 job "frontend" {
-  namespace   = "prod"
   datacenters = ["dc1"]
   type        = "service"
 
@@ -35,12 +34,12 @@ job "frontend" {
       }
 
       service {
-        name     = "frontend-prod"
+        name     = "frontend"
         provider = "nomad"
         port     = "http"
 
         check {
-          name     = "frontend-prod-http"
+          name     = "frontend-http"
           type     = "http"
           path     = "/"
           interval = "10s"
