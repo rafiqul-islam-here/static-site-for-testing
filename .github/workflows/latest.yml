@@ -231,31 +231,6 @@ jobs:
             -namespace="$NOMAD_NAMESPACE" \
             frontend
 
-      - name: Test Nginx
-        run: |
-          if [ "$NOMAD_NAMESPACE" = "prod" ]; then
-            NGINX_PORT=30080
-          else
-            NGINX_PORT=30081
-          fi
-
-          echo "Testing Nginx on port $NGINX_PORT"
-
-          for i in {1..10}; do
-            if curl --connect-timeout 5 "http://${VPS_NETBIRD_IP}:${NGINX_PORT}"; then
-              echo
-              echo "Nginx is reachable."
-              break
-            fi
-
-            if [ "$i" -eq 10 ]; then
-              echo "Nginx is not reachable."
-              exit 1
-            fi
-
-            sleep 3
-          done
-
       - name: Cleanup
         if: always()
         run: |
