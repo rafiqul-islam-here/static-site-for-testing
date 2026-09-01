@@ -3,7 +3,7 @@ variable "IMAGE" {
 }
 
 job "nginx" {
-  namespace   = "prod"
+  namespace   = "dev"
   datacenters = ["dc1"]
   type        = "service"
 
@@ -14,7 +14,7 @@ job "nginx" {
       mode = "host"
 
       port "http" {
-        static = 30080
+        static = 30081
       }
     }
 
@@ -33,12 +33,12 @@ job "nginx" {
       }
 
       service {
-        name     = "nginx-prod"
+        name     = "nginx-dev"
         provider = "nomad"
         port     = "http"
 
         check {
-          name     = "nginx-prod-http"
+          name     = "nginx-dev-http"
           type     = "http"
           path     = "/"
           interval = "10s"

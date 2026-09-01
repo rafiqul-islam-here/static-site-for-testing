@@ -2,24 +2,26 @@ variable "IMAGE" {
   type = string
 }
 
-job "nginx" {
+job "frontend" {
   namespace   = "prod"
   datacenters = ["dc1"]
   type        = "service"
 
-  group "nginx" {
+  group "frontend" {
     count = 1
 
     network {
-      mode = "host"
+      mode = "bridge"
 
       port "http" {
-        static = 30080
+        to = 80
       }
     }
 
-    task "nginx" {
+    task "frontend" {
       driver = "podman"
+
+      shutdown_delay = "10s"
 
       config {
         image      = var.IMAGE
@@ -28,17 +30,17 @@ job "nginx" {
       }
 
       resources {
-        cpu    = 200
-        memory = 128
+        cpu    = 500
+        memory = 512
       }
 
       service {
-        name     = "nginx-prod"
+        name     = "frontend-prod"
         provider = "nomad"
         port     = "http"
 
         check {
-          name     = "nginx-prod-http"
+          name     = "frontend-prod-http"
           type     = "http"
           path     = "/"
           interval = "10s"
