@@ -27,6 +27,7 @@ job "nginx" {
         image      = var.IMAGE
         force_pull = true
         ports      = ["http"]
+        args       = ["-c", "/local/nginx.conf"]
       }
 
       template {
@@ -48,6 +49,7 @@ http {
             proxy_pass http://frontend;
 
             proxy_http_version 1.1;
+
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -58,13 +60,9 @@ http {
 EOF
 
         destination = "local/nginx.conf"
-      }
 
-      config {
-        image      = var.IMAGE
-        force_pull = true
-        ports      = ["http"]
-        args       = ["-c", "/local/nginx.conf"]
+        change_mode   = "signal"
+        change_signal = "SIGHUP"
       }
 
       resources {
