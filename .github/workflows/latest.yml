@@ -5,7 +5,6 @@ on:
     branches:
       - main
       - dev
-      - staging
   workflow_dispatch:
 
 env:
@@ -28,7 +27,7 @@ jobs:
           echo "Branch: $BRANCH"
 
           case "$BRANCH" in
-            main|dev|staging)
+            main|dev)
               echo "Branch validation successful."
               ;;
             *)
@@ -81,6 +80,32 @@ jobs:
 
           sudo netbird status
 
+      - name: Configure Deployment
+        shell: bash
+        run: |
+          BRANCH="${GITHUB_REF_NAME}"
+
+          case "$BRANCH" in
+            main)
+              echo "NOMAD_NAMESPACE=prod" >> "$GITHUB_ENV"
+              echo "FRONTEND_JOB_FILE=nomad/prod/frontend.hcl" >> "$GITHUB_ENV"
+              echo "NGINX_JOB_FILE=nomad/nginx-prod.hcl" >> "$GITHUB_ENV"
+              echo "NGINX_IMAGE=${VPS_NETBIRD_IP}:${REGISTRY_PORT}/nginx-prod:latest" >> "$GITHUB_ENV"
+              echo "Deployment target: prod"
+              ;;
+            dev)
+              echo "NOMAD_NAMESPACE=dev" >> "$GITHUB_ENV"
+              echo "FRONTEND_JOB_FILE=nomad/dev/frontend.hcl" >> "$GITHUB_ENV"
+              echo "NGINX_JOB_FILE=nomad/nginx-dev.hcl" >> "$GITHUB_ENV"
+              echo "NGINX_IMAGE=${VPS_NETBIRD_IP}:${REGISTRY_PORT}/nginx-dev:latest" >> "$GITHUB_ENV"
+              echo "Deployment target: dev"
+              ;;
+            *)
+              echo "Unsupported branch: $BRANCH"
+              exit 1
+              ;;
+          esac
+
       - name: Test Registry Connection
         run: |
           echo "=== NetBird Status ==="
@@ -96,35 +121,7 @@ jobs:
 
           curl -v --connect-timeout 10 "http://${VPS_NETBIRD_IP}:${REGISTRY_PORT}/v2/"
 
-      - name: Configure Deployment
-        shell: bash
-        run: |
-          BRANCH="${GITHUB_REF_NAME}"
-
-          case "$BRANCH" in
-            main)
-              echo "NOMAD_NAMESPACE=prod" >> "$GITHUB_ENV"
-              echo "NOMAD_JOB_FILE=nomad/prod/frontend.hcl" >> "$GITHUB_ENV"
-              echo "Deployment target: prod"
-              ;;
-            dev)
-              echo "NOMAD_NAMESPACE=dev" >> "$GITHUB_ENV"
-              echo "NOMAD_JOB_FILE=nomad/dev/frontend.hcl" >> "$GITHUB_ENV"
-              echo "Deployment target: dev"
-              ;;
-            staging)
-              echo "NOMAD_NAMESPACE=staging" >> "$GITHUB_ENV"
-              echo "NOMAD_JOB_FILE=" >> "$GITHUB_ENV"
-              echo "Deployment target: staging"
-              echo "Staging deployment is currently disabled."
-              ;;
-            *)
-              echo "Unsupported branch: $BRANCH"
-              exit 1
-              ;;
-          esac
-
-      - name: Generate Image Tag
+      - name: Generate Frontend Image Tag
         run: |
           TAG="${GITHUB_RUN_NUMBER}"
           REGISTRY="${VPS_NETBIRD_IP}:${REGISTRY_PORT}"
@@ -137,22 +134,40 @@ jobs:
           echo "Tag: $TAG"
           echo "Image: $IMAGE"
 
-      - name: Build Image
+      - name: Build Frontend Image
         run: |
           podman build \
             -t "$IMAGE" \
             ./front-end
 
-          echo "Image built successfully."
+          echo "Frontend image built successfully."
 
-      - name: Push Image
+      - name: Push Frontend Image
         run: |
           podman push \
             --tls-verify=false \
             "$IMAGE"
 
-          echo "Image pushed successfully."
+          echo "Frontend image pushed successfully."
           echo "Image: $IMAGE"
+
+      - name: Build Nginx Image
+        run: |
+          podman build \
+            -t "$NGINX_IMAGE" \
+            "nginx/${NOMAD_NAMESPACE}"
+
+          echo "Nginx image built successfully."
+          echo "Image: $NGINX_IMAGE"
+
+      - name: Push Nginx Image
+        run: |
+          podman push \
+            --tls-verify=false \
+            "$NGINX_IMAGE"
+
+          echo "Nginx image pushed successfully."
+          echo "Image: $NGINX_IMAGE"
 
       - name: Install Nomad
         run: |
@@ -172,23 +187,42 @@ jobs:
           nomad server members
           nomad node status
 
-      - name: Deploy to Nomad
-        if: env.NOMAD_JOB_FILE != ''
+      - name: Deploy Nginx
+        env:
+          NOMAD_ADDR: http://${{ vars.VPS_NETBIRD_IP }}:4646
+        run: |
+          nomad job run \
+            -namespace="$NOMAD_NAMESPACE" \
+            -var="IMAGE=${NGINX_IMAGE}" \
+            "$NGINX_JOB_FILE"
+
+      - name: Deploy Frontend
         env:
           NOMAD_ADDR: http://${{ vars.VPS_NETBIRD_IP }}:4646
         run: |
           nomad job run \
             -namespace="$NOMAD_NAMESPACE" \
             -var="IMAGE=${IMAGE}" \
-            "$NOMAD_JOB_FILE"
+            "$FRONTEND_JOB_FILE"
 
-      - name: Verify Deployment
-        if: env.NOMAD_JOB_FILE != ''
+      - name: Verify Nginx Deployment
         env:
           NOMAD_ADDR: http://${{ vars.VPS_NETBIRD_IP }}:4646
         run: |
           sleep 10
 
+          nomad job status \
+            -namespace="$NOMAD_NAMESPACE" \
+            nginx
+
+          nomad job allocs \
+            -namespace="$NOMAD_NAMESPACE" \
+            nginx
+
+      - name: Verify Frontend Deployment
+        env:
+          NOMAD_ADDR: http://${{ vars.VPS_NETBIRD_IP }}:4646
+        run: |
           nomad job status \
             -namespace="$NOMAD_NAMESPACE" \
             frontend
@@ -197,6 +231,31 @@ jobs:
             -namespace="$NOMAD_NAMESPACE" \
             frontend
 
+      - name: Test Nginx
+        run: |
+          if [ "$NOMAD_NAMESPACE" = "prod" ]; then
+            NGINX_PORT=30080
+          else
+            NGINX_PORT=30081
+          fi
+
+          echo "Testing Nginx on port $NGINX_PORT"
+
+          for i in {1..10}; do
+            if curl --connect-timeout 5 "http://${VPS_NETBIRD_IP}:${NGINX_PORT}"; then
+              echo
+              echo "Nginx is reachable."
+              break
+            fi
+
+            if [ "$i" -eq 10 ]; then
+              echo "Nginx is not reachable."
+              exit 1
+            fi
+
+            sleep 3
+          done
+
       - name: Cleanup
         if: always()
         run: |
@@ -204,6 +263,11 @@ jobs:
             podman rmi "$IMAGE" 2>/dev/null || true
           fi
 
+          if [ -n "${NGINX_IMAGE:-}" ]; then
+            podman rmi "$NGINX_IMAGE" 2>/dev/null || true
+          fi
+
           sudo netbird down || true
 
           echo "Cleanup completed."
+
