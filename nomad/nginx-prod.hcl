@@ -29,9 +29,39 @@ job "nginx" {
         ports      = ["http"]
       }
 
-      resources {
-        cpu    = 200
-        memory = 128
+      template {
+        data = <<EOF
+events {}
+
+http {
+    upstream frontend {
+        {{ range service "frontend" }}
+        server {{ .Address }}:{{ .Port }};
+        {{ end }}
+    }
+
+    server {
+        listen 80;
+        server_name _;
+
+        location / {
+            proxy_pass http://frontend;
+
+            proxy_http_version 1.1;
+
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+}
+EOF
+
+        destination = "local/nginx.conf"
+
+        change_mode   = "signal"
+        change_signal = "SIGHUP"
       }
 
       service {
@@ -46,6 +76,11 @@ job "nginx" {
           interval = "10s"
           timeout  = "2s"
         }
+      }
+
+      resources {
+        cpu    = 200
+        memory = 128
       }
     }
   }
