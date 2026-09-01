@@ -3,7 +3,6 @@ variable "IMAGE" {
 }
 
 job "nginx" {
-  namespace   = "prod"
   datacenters = ["dc1"]
   type        = "service"
 
@@ -11,15 +10,18 @@ job "nginx" {
     count = 1
 
     network {
-      mode = "host"
+      mode = "bridge"
 
       port "http" {
         static = 30080
+        to     = 80
       }
     }
 
     task "nginx" {
       driver = "podman"
+
+      shutdown_delay = "10s"
 
       config {
         image      = var.IMAGE
