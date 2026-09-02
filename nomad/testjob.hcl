@@ -18,7 +18,7 @@ job "web-stack" {
 
       port "http" {
         static = 30080
-        to = 80
+        to     = 80
       }
 
       port "frontend" {
@@ -34,7 +34,7 @@ job "web-stack" {
       }
 
       resources {
-        cpu = 500
+        cpu    = 500
         memory = 512
       }
     }
@@ -47,12 +47,12 @@ job "web-stack" {
       }
 
       lifecycle {
-        hook = "poststart"
+        hook    = "poststart"
         sidecar = true
       }
 
       resources {
-        cpu = 200
+        cpu    = 200
         memory = 128
       }
     }

@@ -157,7 +157,17 @@ jobs:
           echo "=== Nomad Nodes ==="
           nomad node status
 
-      - name: Deploy Nginx and Frontend
+      - name: Validate Nomad Job
+        run: |
+         echo "=== Nomad Job File ==="
+         cat "$JOB_FILE"
+         echo
+         echo "=== Validating ==="
+         nomad job validate "$JOB_FILE"
+
+
+
+      - name: Verify Web Stack Deployment
         env:
           NOMAD_ADDR: http://${{ vars.VPS_NETBIRD_IP }}:4646
         run: |
@@ -165,25 +175,7 @@ jobs:
           echo "Namespace: $NOMAD_NAMESPACE"
           echo "Frontend image: $IMAGE"
           echo "Nginx image: $NGINX_IMAGE"
-          echo
-          nomad job run \
-            -namespace="$NOMAD_NAMESPACE" \
-            -var="FRONTEND_IMAGE=${IMAGE}" \
-            -var="NGINX_IMAGE=${NGINX_IMAGE}" \
-            "$JOB_FILE"
-
-      - name: Verify Web Stack Deployment
-        env:
-          NOMAD_ADDR: http://${{ vars.VPS_NETBIRD_IP }}:4646
-        run: |
-          echo "Waiting for deployment..."
-          sleep 10
-          echo
-          echo "=== Job Status ==="
-          nomad job status -namespace="$NOMAD_NAMESPACE" web-stack
-          echo
-          echo "=== Allocations ==="
-          nomad job allocs -namespace="$NOMAD_NAMESPACE" web-stack
+          nomad job run -namespace="$NOMAD_NAMESPACE" -var="FRONTEND_IMAGE=${IMAGE}" -var="NGINX_IMAGE=${NGINX_IMAGE}" "$JOB_FILE"
 
       - name: Cleanup
         if: always()
