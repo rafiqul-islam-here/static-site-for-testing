@@ -1,3 +1,7 @@
+variable "IMAGE" {
+  type = string
+}
+
 job "demo" {
   namespace   = "prod"
   datacenters = ["dc1"]
@@ -115,9 +119,9 @@ EOF
       driver = "podman"
 
       config {
-        image = "docker.io/library/nginx:alpine"
+        image = var.IMAGE
       }
-
+# docker.io/library/nginx:alpine
       # Discover group2's address/port via Nomad's native service
       # discovery and drop it into a file the frontend task can read.
       template {

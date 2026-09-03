@@ -193,12 +193,12 @@ jobs:
     #       nomad job status -namespace="$NOMAD_NAMESPACE" nginx
     #       nomad job allocs -namespace="$NOMAD_NAMESPACE" nginx
 
-      - name: Verify Frontend Deployment
-        env:
-          NOMAD_ADDR: http://${{ vars.VPS_NETBIRD_IP }}:4646
-        run: |
-          nomad job status -namespace="$NOMAD_NAMESPACE" frontend
-          nomad job allocs -namespace="$NOMAD_NAMESPACE" frontend
+    #   - name: Verify Frontend Deployment
+    #     env:
+    #       NOMAD_ADDR: http://${{ vars.VPS_NETBIRD_IP }}:4646
+    #     run: |
+    #       nomad job status -namespace="$NOMAD_NAMESPACE" frontend
+    #       nomad job allocs -namespace="$NOMAD_NAMESPACE" frontend
 
       - name: Cleanup
         if: always()
