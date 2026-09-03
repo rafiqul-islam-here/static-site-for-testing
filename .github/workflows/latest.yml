@@ -169,9 +169,9 @@ jobs:
         env:
           NOMAD_ADDR: http://${{ vars.VPS_NETBIRD_IP }}:4646
         run: |
-          nomad job run -namespace="$NOMAD_NAMESPACE" -var="IMAGE=${IMAGE}" "$TEST_JOB_FILE"
+          nomad job run -namespace="$NOMAD_NAMESPACE" "$TEST_JOB_FILE"
 
-
+# -var="IMAGE=${IMAGE}"
 
     #   - name: Deploy Nginx
     #     env:
