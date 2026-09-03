@@ -107,10 +107,10 @@ jobs:
         run: |
           echo "=== NetBird Status ==="
           sudo netbird status
-
+          echo
           echo "=== Test VPS ==="
           ping -c 3 "$VPS_NETBIRD_IP" || true
-
+          echo
           echo "=== Test Registry ==="
           timeout 10 bash -c "cat < /dev/null > /dev/tcp/$VPS_NETBIRD_IP/$REGISTRY_PORT" && echo "Registry TCP connection successful." || exit 1
           curl -v --connect-timeout 10 "http://${VPS_NETBIRD_IP}:${REGISTRY_PORT}/v2/"
